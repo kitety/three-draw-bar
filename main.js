@@ -34,7 +34,7 @@ renderer.domElement.style.height = '300px';
 
 // 添加轨道控制器
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // ��效果
+controls.enableDamping = true; // 效果
 controls.enablePan = true;     // 启用平移
 controls.enableZoom = true;    // 启用缩放
 
@@ -70,7 +70,12 @@ const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const box = new THREE.Mesh(geometry, material);
 scene.add(box);
 
-// 添加竖线标记
+// 添加一个配置对象来存储全局配置
+const config = {
+  numberOfLines: 36  // 默认36条线
+};
+
+// 修改 addVerticalLines 函数，使用配置的线条数量
 function addVerticalLines(box) {
   // 获取盒子的边界
   const boundingBox = new THREE.Box3().setFromObject(box);
@@ -83,11 +88,10 @@ function addVerticalLines(box) {
     linewidth: 1,
   });
 
-  const numberOfLines = 36;
-  const interval = width / (numberOfLines );
+  const interval = width / (config.numberOfLines - 1);
   const lines = new THREE.Group();
 
-  for (let i = 0; i <= numberOfLines; i++) {
+  for (let i = 0; i < config.numberOfLines; i++) {
     const x = boundingBox.min.x + (i * interval);
 
     // 创建竖线
@@ -104,15 +108,13 @@ function addVerticalLines(box) {
     canvas.height = 32;
     const context = canvas.getContext('2d');
 
-    // 设置文字样式
-    context.font = 'Bold 24px Arial';
+    context.font = 'Bold 8px Arial';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = 'white';
 
-    const text = i;  // 序号从1开始
+    const text = i;
 
-    // 绘制序号
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillText(text.toString(), canvas.width/2, canvas.height/2);
 
@@ -182,7 +184,7 @@ function getCurrentCenterIndex() {
   const relativeX = centerX - boundingBox.min.x;
 
   // 计算间隔宽度
-  const interval = width /36;
+  const interval = width / (config.numberOfLines - 1);
 
   // 计算下标（可以是小数）
   const index = relativeX / interval;
@@ -366,3 +368,31 @@ function focusOnNumberRange(startPercent, endPercent) {
 
 // 将函数暴露给全局作用域
 window.focusOnNumberRange = focusOnNumberRange;
+
+// 添加一个更新线条数量的函数
+function updateNumberOfLines(newNumber) {
+  // 移除旧的线条
+  scene.remove(verticalLines);
+
+  // 更新配置
+  config.numberOfLines = newNumber;
+
+  // 重新添加线条
+  const newLines = addVerticalLines(box);
+
+  // 更新全局变量
+  window.verticalLines = newLines;
+
+  // 更新 getCurrentCenterIndex 函数中的计算
+  getCurrentCenterIndex = () => {
+    const boundingBox = new THREE.Box3().setFromObject(box);
+    const width = boundingBox.max.x - boundingBox.min.x;
+    const centerX = camera.position.x;
+    const relativeX = centerX - boundingBox.min.x;
+    const interval = width / (config.numberOfLines - 1);
+    return relativeX / interval;
+  };
+}
+
+// 将函数暴露给全局作用域
+window.updateNumberOfLines = updateNumberOfLines;
