@@ -11,7 +11,7 @@ const canvasHeight = 300;
 
 // 创建正交相机
 const aspect = canvasWidth / canvasHeight;
-const frustumSize = 80;
+const frustumSize = 8;
 const camera = new THREE.OrthographicCamera(
   (frustumSize * aspect) / -2, // left
   (frustumSize * aspect) / 2,   // right
@@ -34,7 +34,7 @@ renderer.domElement.style.height = '300px';
 
 // 添加轨道控制器
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // ���阻尼效果
+controls.enableDamping = true; // ��效果
 controls.enablePan = true;     // 启用平移
 controls.enableZoom = true;    // 启用缩放
 
@@ -83,18 +83,45 @@ function addVerticalLines(box) {
     linewidth: 1,
   });
 
-  // 设置间隔
-  const interval = 0.2;
+  const numberOfLines = 36;
+  const interval = width / (numberOfLines );
   const lines = new THREE.Group();
 
-  for (let x = boundingBox.min.x; x <= boundingBox.max.x; x += interval) {
+  for (let i = 0; i <= numberOfLines; i++) {
+    const x = boundingBox.min.x + (i * interval);
+
+    // 创建竖线
     const points = [];
     points.push(new THREE.Vector3(x, boundingBox.min.y - height * 0.1, 0));
     points.push(new THREE.Vector3(x, boundingBox.max.y + height * 0.1, 0));
-
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const line = new THREE.Line(geometry, lineMaterial);
     lines.add(line);
+
+    // 为每个标签创建独立的 canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 32;
+    const context = canvas.getContext('2d');
+
+    // 设置文字样式
+    context.font = 'Bold 24px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = 'white';
+
+    const text = i;  // 序号从1开始
+
+    // 绘制序号
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillText(text.toString(), canvas.width/2, canvas.height/2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.position.set(x, boundingBox.min.y - height * 0.2, 0);
+    sprite.scale.set(1, 0.5, 1);
+    lines.add(sprite);
   }
 
   scene.add(lines);
@@ -142,17 +169,35 @@ function getHorizontalVisibility(object) {
   };
 }
 
-// 动画循环
+// 添加一个函数来计算当前视图中心对应的下标
+function getCurrentCenterIndex() {
+  // 获取盒子的边界
+  const boundingBox = new THREE.Box3().setFromObject(box);
+  const width = boundingBox.max.x - boundingBox.min.x;
+
+  // 获取当前相机位置（视图中心）
+  const centerX = camera.position.x;
+
+  // 计算相对于盒子左边界的位置
+  const relativeX = centerX - boundingBox.min.x;
+
+  // 计算间隔宽度
+  const interval = width /36;
+
+  // 计算下标（可以是小数）
+  const index = relativeX / interval;
+
+  return index;
+}
+
+// 修改 animate 函数，添加中心下标的打印
 function animate() {
   requestAnimationFrame(animate);
 
   // 获取并输出可见性信息
   const visibility = getHorizontalVisibility(box);
-  console.log(
-    `可见度: ${visibility.total.toFixed(2)}%, 从${visibility.start.toFixed(
-      2
-    )}%到${visibility.end.toFixed(2)}%，缩放比: ${camera.zoom}`
-  );
+
+
   lastVisibility = visibility;
 
   renderer.render(scene, camera);
@@ -211,7 +256,7 @@ function fitObjectHeight(camera, object, heightPercentage = 0.8) {
 
 // 使用示例
 window.fitToHeight = () => {
-  return fitObjectHeight(camera, box, 0.8); // 设置为占据 80% 高度
+  return fitObjectHeight(camera, box, 0.6); // 设置为占据 80% 高度
 };
 window.fitToHeight();
 
@@ -232,7 +277,7 @@ window.setViewByPercentages = function(startPercent, endPercent) {
   const canvasWidth = renderer.domElement.clientWidth;
   const canvasHeight = renderer.domElement.clientHeight;
 
-  // 计算相机的视锥体宽度
+  // 计算相机的视锥体度
   const canvasAspect = canvasWidth / canvasHeight;
   const frustumWidth = frustumSize * canvasAspect;
 
@@ -256,3 +301,68 @@ window.setViewByPercentages = function(startPercent, endPercent) {
   // 保持物体高度不变
   // fitObjectHeight(camera, box, 0.8);
 };
+
+// 添加一个函数来将视图对准指定的数字
+function focusOnNumber(number) {
+  // 确保数字在有效范围内(1-36)
+  const targetNumber = Math.max(1, Math.min(36, number));
+
+  // 获取盒子的边界
+  const boundingBox = new THREE.Box3().setFromObject(box);
+  const width = boundingBox.max.x - boundingBox.min.x;
+
+  // 计算目标数字的x坐标
+  // 因为数字从1开始，所以需要减1来对应数组索引
+  const interval = width / (36 - 1);
+  const targetX = boundingBox.min.x + ((targetNumber - 1) * interval);
+
+  // 更新相机和控制器的目标位置
+  camera.position.x = targetX;
+  controls.target.x = targetX;
+
+  // 更新相机矩阵
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+// 将函数暴露给全局作用域，以便可以从控制台调用
+window.focusOnNumber = focusOnNumber;
+
+// 添加一个函数来将视图对准两个数字的中间位置
+function focusOnNumberRange(startPercent, endPercent) {
+    // 确保百分比在0-100之间
+    startPercent = Math.max(0, Math.min(100, startPercent));
+    endPercent = Math.max(0, Math.min(100, endPercent));
+
+    // 获取盒子的边界
+    const boundingBox = new THREE.Box3().setFromObject(box);
+    const width = boundingBox.max.x - boundingBox.min.x;
+
+    // 根据百分比计算实际的x坐标
+    const startX = boundingBox.min.x + (width * startPercent / 100);
+    const endX = boundingBox.min.x + (width * endPercent / 100);
+
+    // 计算中间位置
+    const centerX = (startX + endX) / 2;
+
+    // 更新相机和控制器的目标位置
+    camera.position.x = centerX;
+    controls.target.x = centerX;
+
+    // 计算需要显示的范围宽度
+    const rangeWidth = Math.abs(endX - startX);
+
+    // 调整缩放以显示整个范围
+    const zoom = frustumSize / (rangeWidth * 1.2); // 1.2是为了留一些边距
+    setZoom(zoom);
+
+    // 更新相机矩阵
+    camera.updateProjectionMatrix();
+    controls.update();
+    window.fitToHeight();
+    const centerIndex = getCurrentCenterIndex();
+    console.log(`当前视图中心下标: ${centerIndex.toFixed(2)}`);
+}
+
+// 将函数暴露给全局作用域
+window.focusOnNumberRange = focusOnNumberRange;
