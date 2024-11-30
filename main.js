@@ -254,6 +254,7 @@ function fitObjectHeight(camera, object, heightPercentage = 0.8) {
 
   // 应用缩放
   setZoom(zoom);
+  console.log('zoom', zoom)
 
   return zoom;
 }
@@ -262,7 +263,7 @@ function fitObjectHeight(camera, object, heightPercentage = 0.8) {
 window.fitToHeight = () => {
   return fitObjectHeight(camera, box, 1); // 设置为占据 80% 高度
 };
-// window.fitToHeight();
+window.fitToHeight();
 
 // 根据给定的开始和结束百分比，调整相机视野
 window.setViewByPercentages = function(startPercent, endPercent) {
@@ -420,3 +421,38 @@ function getBoxDisplayHeight(zoom = 1) {
 
 // 将函数暴露给全局作用域以便测试
 window.getBoxDisplayHeight = getBoxDisplayHeight;
+
+function calculateZoomFromDisplayHeight(targetDisplayHeight) {
+  // 获取 box 的实际高度
+  const boundingBox = new THREE.Box3().setFromObject(box);
+  const boxHeight = boundingBox.max.y - boundingBox.min.y;
+
+  // 我们知道：
+  // 当 zoom = 1 时，box 显示高度为 75px
+  // 当 zoom = 4 时，box 显示高度为 300px
+  // 所以正确的公式应该是：
+  const zoom = (targetDisplayHeight / (300/(8/2)));  // 75px 是 zoom=1 时的基准高度
+
+  // 验证计算结果
+  const checkHeight = getBoxDisplayHeight(zoom).boxDisplayHeight;
+  console.log('验证 - 目标高度:', targetDisplayHeight);
+  console.log('验证 - 计算的 zoom:', zoom);
+  console.log('验证 - 实际显示高度:', checkHeight);
+
+  return zoom;
+}
+
+// 将函数暴露给全局作用域
+window.calculateZoomFromDisplayHeight = calculateZoomFromDisplayHeight;
+
+// 使用示例：
+// 如果想要 box 显示为 150 像素高
+// const zoom = calculateZoomFromDisplayHeight(150);
+// setZoom(zoom);
+// 验证计算是否正确
+// const targetHeight = 150; // 假设我们想要显示高度为150像素
+// const calculatedZoom = calculateZoomFromDisplayHeight(targetHeight);
+// const resultHeight = getBoxDisplayHeight(calculatedZoom).boxDisplayHeight;
+// console.log('目标高度:', targetHeight);
+// console.log('计算得到的 zoom:', calculatedZoom);
+// console.log('实际显示高度:', resultHeight);
