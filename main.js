@@ -240,6 +240,8 @@ function fitObjectHeight(camera, object, heightPercentage = 0.8) {
   const boundingBox = new THREE.Box3().setFromObject(object);
   const size = new THREE.Vector3();
   boundingBox.getSize(size);
+  console.log('boundingBox', boundingBox)
+  console.log(size);
 
   // 获取物体的高度
   const objectHeight = size.y;
@@ -258,9 +260,9 @@ function fitObjectHeight(camera, object, heightPercentage = 0.8) {
 
 // 使用示例
 window.fitToHeight = () => {
-  return fitObjectHeight(camera, box, 0.6); // 设置为占据 80% 高度
+  return fitObjectHeight(camera, box, 1); // 设置为占据 80% 高度
 };
-window.fitToHeight();
+// window.fitToHeight();
 
 // 根据给定的开始和结束百分比，调整相机视野
 window.setViewByPercentages = function(startPercent, endPercent) {
@@ -396,3 +398,25 @@ function updateNumberOfLines(newNumber) {
 
 // 将函数暴露给全局作用域
 window.updateNumberOfLines = updateNumberOfLines;
+
+// 添加一个方法来计算和获取 box 在当前 zoom 下的显示高度
+function getBoxDisplayHeight(zoom = 1) {
+  // 获取实际的 frustum 高度（考虑 zoom）
+  const visibleHeight = frustumSize / zoom;
+
+  // 获取 box 的实际高度
+  const boundingBox = new THREE.Box3().setFromObject(box);
+  const boxHeight = boundingBox.max.y - boundingBox.min.y;
+
+  // 计算 box 在屏幕上的显示高度（像素）
+  const displayHeightInPixels = (boxHeight / visibleHeight) * canvasHeight;
+
+  return {
+    frustumHeight: visibleHeight,        // 相机可视区域的实际高度（Three.js 单位）
+    boxActualHeight: boxHeight,          // box 的实际高度（Three.js 单位）
+    boxDisplayHeight: displayHeightInPixels  // box 在屏幕上的显示高度（像素）
+  };
+}
+
+// 将函数暴露给全局作用域以便测试
+window.getBoxDisplayHeight = getBoxDisplayHeight;
